@@ -2,6 +2,7 @@ from aiogram import Router, F, types
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import datetime, date
 import db
 import report
@@ -39,6 +40,40 @@ async def medicine(message: Message):
     now = datetime.now().strftime("%H:%M")
     await message.answer(f"💊 Лекарство принято в {now}", reply_markup=MAIN_KEYBOARD)
 
+# ========== Callback-обработчики для кнопок из напоминания ==========
+@router.callback_query(F.data == "medicine_cb")
+async def medicine_callback(callback: CallbackQuery):
+    if not is_allowed(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    db.add_medicine_event(callback.from_user.id)
+    now = datetime.now().strftime("%H:%M")
+    await callback.message.edit_text(f"💊 Лекарство принято в {now}")
+    await callback.answer()
+
+@router.callback_query(F.data == "start_stool_fsm")
+async def start_stool_fsm_callback(callback: CallbackQuery, state: FSMContext):
+    if not is_allowed(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    await state.set_state(StoolForm.bristol)
+    builder = InlineKeyboardBuilder()
+    types_list = [
+        ("1 – Отдельные твёрдые комки (орехи)", "bristol_1"),
+        ("2 – Колбасовидный, но комковатый", "bristol_2"),
+        ("3 – Колбасовидный с трещинами на поверхности", "bristol_3"),
+        ("4 – Гладкий и мягкий (идеал)", "bristol_4"),
+        ("5 – Мягкие комки с чёткими краями", "bristol_5"),
+        ("6 – Пушистые рваные кусочки, кашицеобразный", "bristol_6"),
+        ("7 – Водянистый, без твёрдых частиц", "bristol_7"),
+    ]
+    for text, cb in types_list:
+        builder.button(text=text, callback_data=cb)
+    builder.adjust(1)
+    await callback.message.edit_text("Выберите тип стула по Бристольской шкале:",
+                                     reply_markup=builder.as_markup())
+    await callback.answer()
+
 # ========== Стул (FSM) ==========
 @router.message(F.text == "💩 Стул")
 @router.message(Command("stool"))
@@ -46,8 +81,7 @@ async def stool_start(message: Message, state: FSMContext):
     if not is_allowed(message.from_user.id):
         return
     await state.set_state(StoolForm.bristol)
-    # Инлайн-клавиатура с типами Бристольской шкалы
-    builder = types.InlineKeyboardBuilder()
+    builder = InlineKeyboardBuilder()   # <-- ИСПРАВЛЕНО
     types_list = [
         ("1 – Отдельные твёрдые комки (орехи)", "bristol_1"),
         ("2 – Колбасовидный, но комковатый", "bristol_2"),
@@ -69,7 +103,6 @@ async def process_bristol(callback: CallbackQuery, state: FSMContext):
     await state.update_data(bristol=bristol_type)
     await state.set_state(StoolForm.flags)
 
-    # Клавиатура с флагами (множественный выбор)
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text="🩸 Кровь", callback_data="flag_blood")],
         [types.InlineKeyboardButton(text="💧 Слизь", callback_data="flag_mucus")],
@@ -94,7 +127,6 @@ async def toggle_flag(callback: CallbackQuery, state: FSMContext):
         flags.append(flag_name)
     await state.update_data(flags=flags)
 
-    # Обновим текст на кнопках, добавив галочки
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text=f"🩸 Кровь {'✅' if 'blood' in flags else ''}", callback_data="flag_blood")],
         [types.InlineKeyboardButton(text=f"💧 Слизь {'✅' if 'mucus' in flags else ''}", callback_data="flag_mucus")],
@@ -161,7 +193,6 @@ async def process_details(message: Message, state: FSMContext):
     details = message.text
     data = await state.get_data()
 
-    # Сохраняем в БД
     db.add_stool_event(
         user_id=message.from_user.id,
         bristol=data["bristol"],
@@ -176,7 +207,6 @@ async def process_details(message: Message, state: FSMContext):
         details=details
     )
 
-    # Подтверждение
     flags_text = ", ".join(data.get("flags", [])) or "нет"
     summary = (
         f"✅ Стул записан!\n"
