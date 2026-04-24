@@ -24,7 +24,6 @@ def get_stats_text(start_date: date = None, end_date: date = None):
         period = "всё время"
     stool_count = sum(1 for _, e, _ in events if e == 'stool')
     medicine_count = sum(1 for _, e, _ in events if e == 'medicine')
-    # Простая статистика по дням
     days = {}
     for _, e, ts in events:
         d = ts[:10]
