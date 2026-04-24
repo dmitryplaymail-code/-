@@ -1,24 +1,21 @@
-from aiogram import Bot
-from datetime import date, datetime
+from aiogram import Bot, types
+from datetime import date
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import db
 import report
 from config import ALLOWED_USERS, REMINDER_HOUR, REMINDER_MINUTE, REPORT_DAY_OF_WEEK, REPORT_HOUR, REPORT_MINUTE
-import asyncio
 
-scheduler = AsyncIOScheduler(timezone="Europe/Moscow")  # укажите свой часовой пояс
+scheduler = AsyncIOScheduler(timezone="Europe/Moscow")  # укажите свой часовой пояс, если нужно
 
 async def send_reminder(bot: Bot):
-    """Ежедневное напоминание всем разрешённым пользователям."""
+    """Ежедневное напоминание всем разрешённым."""
     for uid in ALLOWED_USERS:
-        # Проверяем, был ли сегодня стул
         stool_today = db.get_last_stool_date()
         if stool_today:
             text = ("⏰ Напоминание: дайте Грише лекарство!\n"
                     "Сегодня стул уже был ✅, но проверьте дневник.")
-            # Кнопка только для лекарства
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="💊 Лекарство принято", callback_data="medicine")]
             ])
@@ -51,7 +48,7 @@ async def send_weekly_report(bot: Bot):
             )
             await bot.send_message(uid, stats)
         except Exception as e:
-            print(f"Ошибка отправки отчёта {uid}: {e}")
+            print(f"Ошибка отправки отчёта пользователю {uid}: {e}")
 
 def setup_scheduler(bot: Bot):
     scheduler.add_job(
