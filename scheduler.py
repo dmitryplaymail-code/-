@@ -7,32 +7,30 @@ import db
 import report
 from config import ALLOWED_USERS, REMINDER_HOUR, REMINDER_MINUTE, REPORT_DAY_OF_WEEK, REPORT_HOUR, REPORT_MINUTE
 
-scheduler = AsyncIOScheduler(timezone="Europe/Moscow")  # укажите свой часовой пояс, если нужно
+scheduler = AsyncIOScheduler(timezone="Europe/Moscow")  # измените, если нужно
 
 async def send_reminder(bot: Bot):
-    """Ежедневное напоминание всем разрешённым."""
     for uid in ALLOWED_USERS:
         stool_today = db.get_last_stool_date()
         if stool_today:
             text = ("⏰ Напоминание: дайте Грише лекарство!\n"
-                    "Сегодня стул уже был ✅, но проверьте дневник.")
+                    "Сегодня стул уже был ✅")
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💊 Лекарство принято", callback_data="medicine")]
+                [InlineKeyboardButton(text="💊 Лекарство принято", callback_data="medicine_cb")]
             ])
         else:
             text = ("⏰ Напоминание: дайте Грише лекарство и отметьте стул!\n"
                     "Стул сегодня ещё не отмечен.")
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💩 Стул", callback_data="stool"),
-                 InlineKeyboardButton(text="💊 Лекарство", callback_data="medicine")]
+                [InlineKeyboardButton(text="💩 Стул", callback_data="start_stool_fsm"),
+                 InlineKeyboardButton(text="💊 Лекарство", callback_data="medicine_cb")]
             ])
         try:
             await bot.send_message(uid, text, reply_markup=keyboard)
         except Exception as e:
-            print(f"Не удалось отправить напоминание пользователю {uid}: {e}")
+            print(f"Не удалось отправить напоминание {uid}: {e}")
 
 async def send_weekly_report(bot: Bot):
-    """Еженедельный отчёт в воскресенье."""
     today = date.today()
     start = today.subtract(days=7)
     end = today
@@ -48,7 +46,7 @@ async def send_weekly_report(bot: Bot):
             )
             await bot.send_message(uid, stats)
         except Exception as e:
-            print(f"Ошибка отправки отчёта пользователю {uid}: {e}")
+            print(f"Ошибка отправки отчёта {uid}: {e}")
 
 def setup_scheduler(bot: Bot):
     scheduler.add_job(
