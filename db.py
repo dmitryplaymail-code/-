@@ -33,8 +33,8 @@ def get_events_between(start_date: date, end_date: date):
     conn.close()
     return rows
 
-def get_last_stool_date(user_id: int = None):
-    """Дата последнего стула (сегодня?) для проверки при напоминании."""
+def get_last_stool_date():
+    """Проверяет, был ли сегодня стул (любой пользователь)."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     today = date.today().isoformat()
