@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, types
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -70,7 +70,6 @@ async def cmd_stats(message: Message):
 async def cmd_report(message: Message):
     if not is_allowed(message.from_user.id):
         return
-    # Ожидается /report YYYY-MM-DD YYYY-MM-DD
     args = message.text.split()
     if len(args) == 3:
         try:
@@ -80,7 +79,6 @@ async def cmd_report(message: Message):
             await message.answer("Формат: /report ГГГГ-ММ-ДД ГГГГ-ММ-ДД")
             return
     else:
-        # Если без дат – за всё время
         start = date(2000, 1, 1)
         end = date.today()
     csv_file = report.generate_csv(start, end)
@@ -88,6 +86,5 @@ async def cmd_report(message: Message):
         document=types.BufferedInputFile(csv_file.getvalue().encode('utf-8'),
                                          filename=f"Гриша_дневник_{start}_{end}.csv")
     )
-    # И краткая статистика
     stats = report.get_stats_text(start, end)
     await message.answer(stats)
